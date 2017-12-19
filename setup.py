@@ -9,7 +9,7 @@ setup(
   author_email="lastname.firstname@gmail.com",
   description="An sshpass wrapper with password persistence.",
   license="BSD-3-Clause",
-  url="https://github.com/cooijmanstim/sshpass-agent",
+  url="https://github.com/cooijmanstim/pshaw",
 
   entry_points=dict(console_scripts=[
     "pshaw = pshaw.pshaw:main",
