@@ -15,4 +15,8 @@ setup(
     "pshaw = pshaw.pshaw:main",
     "pshawd = pshaw.pshawd:main",
   ]),
+
+  install_requires="""
+    asyncssh
+  """,
 )

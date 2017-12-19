@@ -17,11 +17,11 @@ loop = asyncio.get_event_loop()
 
 def evict():
   now = loop.time()
-  for namespace, then in list(password_times.items()):
+  for label, then in list(password_times.items()):
     if now - then > LIFETIME:
-      logging.warning(namespace, "expired")
-      del password_store[namespace]
-      del password_times[namespace]
+      logging.warning(label, "expired")
+      del password_store[label]
+      del password_times[label]
 
 def evict_repeatedly():
   evict()
@@ -36,19 +36,19 @@ async def send(object, process):
   process.stdout.write(string + "\n")
 
 async def server_app(process):
-  # get namespace from client
-  namespace = await recv(process)
+  # get label from client
+  label = await recv(process)
 
-  # look up password for namespace, if any, and report to client
-  password = password_store.get(namespace, None)
+  # look up password for label, if any, and report to client
+  password = password_store.get(label, None)
   await send(password, process)
   
   # if no password stored, client will ask user and give it to us
-  if namespace not in password_store:
-    logging.info("asking client for %s password..." % namespace)
+  if label not in password_store:
+    logging.info("asking client for %s password..." % label)
     password = await recv(process)
-    password_store[namespace] = password
-    password_times[namespace] = loop.time()
+    password_store[label] = password
+    password_times[label] = loop.time()
     logging.info("stored.")
 
   process.exit(0)

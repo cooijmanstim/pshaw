@@ -28,7 +28,7 @@ async def client_app(conn, label):
 
     # if the server doesn't have it, ask the user
     if password is None:
-      password = getpass.getpass(prompt="%s password (will be stored in sshpass-agent): " % label)
+      password = getpass.getpass(prompt="%s password (will be stored in pshawd): " % label)
 
       # store the password with the server
       await send(password, process)
@@ -50,9 +50,7 @@ async def get_password(label):
 def main():
   parser = argparse.ArgumentParser(description="ssh with password persistence.")
   parser.add_argument("label", help="A name to associate with the password so it can later be retrieved under that name.")
-  parser.add_argument("command", help="The command to wrap in sshpass.")
-  parser.add_argument("arguments", nargs="*", help="The arguments to the command.")
-  args = parser.parse_args()
+  args, command = parser.parse_known_args()
 
   password = asyncio.get_event_loop().run_until_complete(get_password(args.label))
 
@@ -62,7 +60,7 @@ def main():
   os.write(wpipe, password.encode("ascii"))
   os.close(wpipe)
 
-  os.execvp("sshpass", ["sshpass", "-d%i" % rpipe, args.command] + args.arguments)
+  os.execvp("sshpass", ["sshpass", "-d%i" % rpipe] + command)
 
 if __name__ == "__main__":
   main()
