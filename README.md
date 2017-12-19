@@ -39,6 +39,12 @@ total size is 0  speedup is 0.00
 
 AFAIK, Pshaw requires at least Python 3.3, the `asyncssh` package, and the `sshpass` utility.
 
+## Limitations
+
+  * Exceptional situations such as a wrong password may not be dealt with, and most exceptions will go uncaught. We can deal with things as they come up.
+  * There is no way to forget or update a password other than to wait for it to expire or kill/restart `pshawd`. If you mistyped your password, you can store a different one under a different label.
+  * All the limitations of `sshpass` apply.
+
 ## Security considerations
 
   * You must trust the root user.
