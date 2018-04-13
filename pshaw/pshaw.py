@@ -26,7 +26,11 @@ def get_password(realm):
   client.connect("localhost", pkey=CLIENT_KEY, port=PORT)
   transport = client.get_transport()
   realm = "cedar"
-  with transport.open_channel("session") as channel:
+  # using channel as a context manager causes it to be closed afterwards, which seems to conflict
+  # with the close on client or pipe.
+  #with transport.open_channel("session") as channel:
+  channel = transport.open_channel("session")
+  if True:
     logger.info("invoking subsystem")
     channel.invoke_subsystem("pshaw")
     with channel.makefile("rw") as pipe:
