@@ -1,17 +1,17 @@
 
 # Pshaw!
 
-Pshaw is an ssh wrapper that provides password storage -- you enter your password the first time you connect but then nevermore until storage expires. The passwords are never stored on disk; only in the memory of an `ssh-agent`-like daemon process. The ssh authentication is handled by [sshpass](https://sourceforge.net/projects/sshpass).
+Pshaw is like `ssh-agent` but for passwords -- you enter your password the first time you connect to a host but then nevermore. The passwords are never stored on disk; only in the memory of an `ssh-agent`-like daemon process. The ssh authentication is handled by [sshpass](https://sourceforge.net/projects/sshpass).
 
 This approach is less secure and less convenient than ssh keys, and should only be used if you would otherwise store your password in plaintext on disk.
 
 ## Usage
 
 ```
-pshaw <label> ssh [...]
+pshaw <realm> ssh [...]
 ```
 
-where `label` is an arbitrary string used to select a particular password, e.g. `user@host`.
+where `realm` is an arbitrary string used to select a particular password, e.g. the name of the host or network it is associated with.
 
 Example session:
 
@@ -37,12 +37,12 @@ total size is 0  speedup is 0.00
 
 ## Dependencies
 
-AFAIK, Pshaw requires at least Python 3.3, the `asyncssh` package, and the `sshpass` utility.
+AFAIK, Pshaw requires at least Python 3.3, the `paramiko` package, and the `sshpass` utility. Note `paramiko` requires the `python-gssapi` pip package; it does not require `gssapi`.
 
 ## Limitations
 
   * Exceptional situations such as a wrong password may not be dealt with, and most exceptions will go uncaught. We can deal with things as they come up.
-  * There is no way to forget or update a password other than to wait for it to expire or kill/restart `pshawd`. If you mistyped your password, you can store a different one under a different label.
+  * There is no way to forget or update a password other than to wait for it to expire or kill/restart `pshawd`. If you mistyped your password, you can store a different one under a different realm name.
   * All the limitations of `sshpass` apply.
 
 ## Security considerations
