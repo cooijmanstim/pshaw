@@ -1,76 +1,92 @@
-import asyncio, asyncssh, sys, json, datetime, logging, os
+import sys, json, datetime, logging, os, socket, threading
+from pathlib import Path
+import paramiko
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 PORT = 8022
-LIFETIME = 24 * 60 * 60
-EVICT_INTERVAL = LIFETIME / 100
-
-CLIENT_KEY = os.path.join(os.environ["HOME"], ".ssh", "pshaw_client")
-SERVER_KEY = os.path.join(os.environ["HOME"], ".ssh", "pshaw_server")
+CLIENT_KEY = paramiko.RSAKey(filename=Path(os.environ["HOME"], ".ssh", "pshaw_client"))
+SERVER_KEY = paramiko.RSAKey(filename=Path(os.environ["HOME"], ".ssh", "pshaw_server"))
+SUBSYSTEM = "pshaw"
 
 password_store = dict()
 password_times = dict()  # time of storage
 
-loop = asyncio.get_event_loop()
+class PshawSubsystemHandler(paramiko.server.SubsystemHandler):
+  def start_subsystem(self, name, transport, channel):
+    logger.info("entered subsystem")
+    with channel.makefile("rw") as pipe:
+      # get label from client
+      realm = recv(pipe)
 
-def evict():
-  now = loop.time()
-  for label, then in list(password_times.items()):
-    if now - then > LIFETIME:
-      logging.warning("%s expired", label)
-      del password_store[label]
-      del password_times[label]
+      # look up password for label, if any, and report to client
+      password = password_store.get(realm, None)
+      send(pipe, password)
 
-def evict_repeatedly():
-  evict()
-  loop.call_later(EVICT_INTERVAL, evict_repeatedly)
+      # if no password stored, client will ask user and give it to us
+      if realm not in password_store:
+        logging.info("asking client for %s password..." % realm)
+        password = recv(pipe)
+        time = datetime.datetime.now()
+        password_store[realm] = password
+        password_times[realm] = time
+        logging.info("%s password stored at %s", realm, time)
 
-async def recv(process):
-  string = await process.stdin.readline()
+      self.get_server().event.set()
+
+def recv(pipe):
+  string = pipe.readline()
+  #logger.info("recv %s", string)
   return json.loads(string)
 
-async def send(object, process):
+def send(pipe, object):
   string = json.dumps(object)
-  process.stdout.write(string + "\n")
+  #logger.info("send %s", string)
+  pipe.write(string + "\n")
 
-async def server_app(process):
-  # get label from client
-  label = await recv(process)
+class Server(paramiko.ServerInterface):
+  def __init__(self, *args, **kwargs):
+    super().__init__(*args, **kwargs)
+    self.event = threading.Event()
 
-  # look up password for label, if any, and report to client
-  password = password_store.get(label, None)
-  await send(password, process)
+  def check_channel_request(self, kind, chanid):
+    if kind == 'session':
+      return paramiko.OPEN_SUCCEEDED
+    return paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
 
-  # if no password stored, client will ask user and give it to us
-  if label not in password_store:
-    logging.info("asking client for %s password..." % label)
-    password = await recv(process)
-    password_store[label] = password
-    password_times[label] = loop.time()
-    tomorrow = datetime.date.now() + datetime.timedelta(days=1)
-    # FIXME somehow we never get here, but the password *IS* stored
-    logging.info("%s password stored. Expires: %s", label, tomorrow)
+  def check_auth_publickey(self, username, key):
+    return paramiko.AUTH_SUCCESSFUL if key == CLIENT_KEY else paramiko.AUTH_FAILED
 
-  process.exit(0)
+  def get_allowed_auths(self, username):
+    return "publickey"
 
 def main():
-  async def start_server():
-    await asyncssh.listen(
-      "localhost", PORT,
-      server_host_keys=[SERVER_KEY],
-      authorized_client_keys="%s.pub" % CLIENT_KEY,
-      allow_pty=False,
-      agent_forwarding=False,
-      process_factory=server_app)
+  while True:
+    try:
+      # yuuuuck do i really need to do all this myself?? i thought these days were over
+      # FIXME check return values -___-
+      sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+      sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+      sock.bind(("localhost", PORT))
 
-  try:
-    loop.run_until_complete(start_server())
-  except (OSError, asyncssh.Error) as exc:
-    sys.exit("Error starting server: " + str(exc))
-  evict_repeatedly()
-  loop.run_forever()
+      sock.listen(100)
+      client, addr = sock.accept()
+
+      transport = paramiko.Transport(client)
+      transport.load_server_moduli()
+      transport.add_server_key(SERVER_KEY)
+      transport.set_subsystem_handler(SUBSYSTEM, PshawSubsystemHandler)
+
+      server = Server()
+      transport.start_server(server=server)
+      # close the connection after at most 300 seconds
+      server.event.wait(300)
+      transport.close()
+    except KeyboardInterrupt:
+      sys.exit(0)
+    except Exception as exc:
+      logger.error(exc)
 
 if __name__ == "__main__":
   main()
