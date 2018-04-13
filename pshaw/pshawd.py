@@ -19,7 +19,7 @@ def evict():
   now = loop.time()
   for label, then in list(password_times.items()):
     if now - then > LIFETIME:
-      logging.warning(label, "expired")
+      logging.warning("%s expired", label)
       del password_store[label]
       del password_times[label]
 
@@ -42,14 +42,16 @@ async def server_app(process):
   # look up password for label, if any, and report to client
   password = password_store.get(label, None)
   await send(password, process)
-  
+
   # if no password stored, client will ask user and give it to us
   if label not in password_store:
     logging.info("asking client for %s password..." % label)
     password = await recv(process)
     password_store[label] = password
     password_times[label] = loop.time()
-    logging.info("stored.")
+    tomorrow = datetime.date.now() + datetime.timedelta(days=1)
+    # FIXME somehow we never get here, but the password *IS* stored
+    logging.info("%s password stored. Expires: %s", label, tomorrow)
 
   process.exit(0)
 

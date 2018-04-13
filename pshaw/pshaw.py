@@ -33,7 +33,7 @@ async def client_app(conn, label):
       # store the password with the server
       await send(password, process)
 
-  process.close()
+    process.close()
   return password
 
 async def get_password(label):
