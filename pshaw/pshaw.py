@@ -2,6 +2,12 @@ import sys, json, os, subprocess as sp, getpass, logging, argparse
 from pathlib import Path
 import paramiko
 
+# silence deprecation warnings
+# https://github.com/paramiko/paramiko/issues/1386
+import warnings
+warnings.filterwarnings(action='ignore',module='.*paramiko.*')
+
+
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -25,7 +31,6 @@ def get_password(realm):
   client.get_host_keys().add("[localhost]:%s" % PORT, "ssh-rsa", SERVER_KEY)
   client.connect("localhost", pkey=CLIENT_KEY, port=PORT)
   transport = client.get_transport()
-  realm = "cedar"
   # using channel as a context manager causes it to be closed afterwards, which seems to conflict
   # with the close on client or pipe.
   #with transport.open_channel("session") as channel:
