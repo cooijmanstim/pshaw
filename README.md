@@ -5,6 +5,8 @@ Pshaw is like `ssh-agent` but for passwords -- you enter your password the first
 
 This approach is less secure and less convenient than ssh keys, and should only be used if you would otherwise store your password in plaintext on disk.
 
+> :warning: **2020-02-12: I'm retiring this in favor of [pass-sshpass](https://github.com/cooijmanstim/pass-sshpass), which is much simpler and effectively uses `gpg-agent` to avoid frequent password re-entry.**
+
 ## Usage
 
 ```
